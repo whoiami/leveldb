@@ -1220,8 +1220,11 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
   uint64_t last_sequence = versions_->LastSequence();
   Writer* last_writer = &w;
   if (status.ok() && my_batch != nullptr) {  // nullptr batch is for compactions
+    // AZ: Group batches in writers_,
+    // AZ: combine them together, decrease frequency of writing to disk
     WriteBatch* updates = BuildBatchGroup(&last_writer);
     WriteBatchInternal::SetSequence(updates, last_sequence + 1);
+    // AZ: One write one sequence, this group may contain multiple writes
     last_sequence += WriteBatchInternal::Count(updates);
 
     // Add to log and apply to memtable.  We can release the lock
@@ -1230,6 +1233,12 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
     // into mem_.
     {
       mutex_.Unlock();
+      // AZ: flush log will flish content to OS
+      // AZ: If program crush, OS still sync this content to disk
+      // AZ: If server down, this content in OS will lost.
+      //
+      // AZ: logfile_->Sync() on the other hand will sync this content to db
+      // AZ: Of cource this operation is expansive.
       status = log_->AddRecord(WriteBatchInternal::Contents(updates));
       bool sync_error = false;
       if (status.ok() && options.sync) {
@@ -1511,6 +1520,7 @@ Status DB::Open(const Options& options, const std::string& dbname,
     // Create new log and a corresponding memtable.
     uint64_t new_log_number = impl->versions_->NewFileNumber();
     WritableFile* lfile;
+    // AZ: One optional impl locates in env_posix.cc
     s = options.env->NewWritableFile(LogFileName(dbname, new_log_number),
                                      &lfile);
     if (s.ok()) {
