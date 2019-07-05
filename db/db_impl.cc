@@ -1131,6 +1131,9 @@ Status DBImpl::Get(const ReadOptions& options, const Slice& key,
   Version::GetStats stats;
 
   // Unlock while reading from files and memtables
+  // AZ: Why you can Unlock?
+  // AZ: imm_ is guarded by mutex_ but this is a get op, it is okay
+  // AZ: imm_ is not likely to be destroied, currently hold refference
   {
     mutex_.Unlock();
     // First look in the memtable, then in the immutable memtable (if any).

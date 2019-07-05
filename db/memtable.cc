@@ -106,7 +106,7 @@ bool MemTable::Get(const LookupKey& key, std::string* value, Status* s) {
     // entry format is:
     //    klength  varint32
     //    userkey  char[klength]
-    //    tag      uint64
+    //    tag      uint64  (AZ: SequenceNumber + ValueType)
     //    vlength  varint32
     //    value    char[vlength]
     // Check that it belongs to same user key.  We do not check the
